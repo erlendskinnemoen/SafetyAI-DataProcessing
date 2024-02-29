@@ -1,6 +1,6 @@
 #################################################### OVERVIEW (START) ####################################################
 # LAST CHANGES [AUTHOR]: Erlend Skinnemoen
-# LAST CHANGES [DATE]: 28.02.2024
+# LAST CHANGES [DATE]: 29.02.2024
 #
 # DESCRIPTION 
 # The script orchestrates the processing of the service through a series of steps including reading data from a database, enhancing text clarity using an AI model, categorizing report topics, and updating the database with processed information. 
@@ -15,15 +15,15 @@ import improve_text_gpt_35_turbo as imprText
 import parsing_topics_gpt_35_turbo as parsTop
 import dependencies as dep
 
-import numpy as np
 import logging
+import numpy as np
+import os 
 import sys
-import os
 import time
 
 from concurrent.futures import ThreadPoolExecutor
 
-# TO DO :## ------ LOGGING ------ ## 
+## ------ LOGGING ------ ## 
 def configure_logging() -> None:
    """Configure logging."""
    fmt = '%(asctime)s %(lineno)-4s%(funcName)-20s %(levelname)-8s %(message)s'
@@ -72,15 +72,15 @@ def main():
     dataset_df.rename(columns={'_value':'shortdescription', 'template_name':'source'}, inplace = True)
     dataset_df = dataset_df.reindex(columns = new_col_order)
     
-    dep.storeFailuresToCsv(dep.parsed_failed_rows, 'parsed_text')
+    dep.storeFailuresToCsv(dep.parsed_failed_rows, 'parsed_topics')
     dataset_df.to_csv('parsed_Text.csv', index=False)
 
     #Write to DB
-    conn = dbConn.databaseConnection()
-    dbConn.writeToDatabase2('./parsed_Text.csv', conn, dep.destination_table)
+    dbConn.writeToDatabase(dataset_df)
     __logger.info('Script finished')
 
 if __name__ == "__main__":
+    setattr(sys, "excepthook", dep.handle_exception)
     main()
 
  

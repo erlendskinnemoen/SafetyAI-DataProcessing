@@ -1,44 +1,43 @@
 #################################################### OVERVIEW (START) ######################################################
 # LAST CHANGES [AUTHOR]: Erlend Skinnemoen
-# LAST CHANGES [DATE]: 28.02.2024
+# LAST CHANGES [DATE]: 29.02.2024
 #
 # DESCRIPTION 
 # Facilitates interactions with a PostgreSQL database, including establishing connections, reading data, and writing data back to the database. 
 # In addition the scripts does some simple data formatting in order to comply with the database table structure and the other scripts in the microservice.
 #################################################### OVERVIEW (END) ######################################################
 
-import os 
-import sqlalchemy as sa
-import psycopg2 as sql
-import pandas as pd
-import logging 
 import dependencies as dep
+import logging 
+import os 
+import pandas as pd
+import psycopg2 as sql
+import urllib.parse
 
+from sqlalchemy import create_engine
 from datetime import datetime
 
 ## ------ VARIABLES ------ ##
-
-logger = logging.getLogger(__name__)
-
 host = os.environ["DB_HOST"]
 dbname = os.environ["DB_HOST_NAME"]
 user= os.environ["DB_USERNAME"]
 password = os.environ["DB_USER_PWD"]
 port= os.environ["DB_PORT_ID"]
 
-## ------ FUNCTIONS ------ ##
 
-def fill_if_empty(row):
-    if pd.isnull(row):
-        return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+## ------ FUNCTIONS ------ ##
+logger = logging.getLogger(__name__)
+
+def fill_if_empty(cell):
+    if isinstance(cell, pd.Timestamp):
+        return cell
     else:
-        return row
+        return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def databaseConnection():
     try: 
-        #conn = sql.connect(host, dbname, user, password, port) 
-        conn = sql.connect(host=os.environ["DB_HOST"], dbname=os.environ["DB_HOST_NAME"], user=os.environ["DB_USERNAME"], password = os.environ["DB_USER_PWD"], port=os.environ["DB_PORT_ID"]) 
+        conn = sql.connect(host=host, dbname=dbname, user=user, password=password,  port=port) 
 
         logger.info("Connected succesfully to the DB")
         return conn
@@ -70,64 +69,32 @@ def readFromDatabase(conn, SQL_SELECT):
         if conn and conn.status == sql.extensions.STATUS_READY:
             conn.close()
 
-# TO DO - > IMPROVE ON THE SQLALCHEMY 
-def writeToDatabase1(df, database_output_table):    
-    engine = sa.create_engine(f'postgresql://{user}:{password}@{host}:{port}/{dbname}')
-    with engine.begin() as conn: 
-        # step 1 - create temporary table and upload DataFrame
-        conn.exec_driver_sql(
-            f"""CREATE TEMPORARY temp_table_on_conflict AS 
-                SELECT * FROM {database_output_table} WHERE FALSE"""
-        )
-        df.to_sql('temp_table_on_conflict', con=conn, index=False, if_exists='append', method='multi')
 
-        # step 2 - merge temp_table into main_table
-        conn.exec_driver_sql(
-            f"""INSERT INTO {database_output_table} (idmemo, changeddate, shortdescription, aiimproveddescription, aiparsedtopics, lastrundate, updatedate, source, aiparsedtopics2)
-                SELECT idmemo, changeddate, shortdescription, aiimproveddescription, aiparsedtopics, lastrundate, updatedate, source, aiparsedtopics FROM temp_table
-                ON CONFLICT (idmemo) DO UPDATE SET
+url_parse_pwd = urllib.parse.quote_plus(password) #due to sqlalchemy limitations: https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls
+connection_string = f"postgresql+psycopg2://{user}:{url_parse_pwd}@{host}:{port}/{dbname}"
+
+engine = create_engine(connection_string)
+stage_sql = f"""/*the temp table part*/
+                CREATE TEMPORARY TABLE IF NOT exists stage_table AS SELECT * 
+                FROM {dep.destination_table} WHERE 1<>1
+            """
+
+insert_sql = f"""/*the insert part*/
+                INSERT INTO {dep.destination_table} (idmemo, changeddate, shortdescription, aiimproveddescription, aiparsedtopics, lastrundate, updatedate, source, aiparsedtopics2) 
+                SELECT idmemo, changeddate, shortdescription, aiimproveddescription, aiparsedtopics, lastrundate, updatedate, source, aiparsedtopics2 FROM pg_temp.stage_table 
+                ON CONFLICT (idmemo) DO UPDATE SET 
                     changeddate = EXCLUDED.changeddate,
                     shortdescription = EXCLUDED.shortdescription,
                     aiimproveddescription = EXCLUDED.aiimproveddescription,
                     aiparsedtopics = EXCLUDED.aiparsedtopics,
                     lastrundate = EXCLUDED.lastrundate,
                     updatedate = EXCLUDED.updatedate,
-                    source = EXCLUDED.source
-                    aiparsedtopics2 = EXCLUDED.aiparsedtopics2
+                    source = EXCLUDED.source,
+                    aiparsedtopics2 = EXCLUDED.aiparsedtopics2;
             """
-        )
 
-        # step 3 - confirm results
-        result = conn.exec_driver_sql(f"SELECT * FROM {database_output_table} ORDER BY idmemo").all()
-        print(result) 
-    engine.dispose()
-    
-
-def writeToDatabase(df, database_output_table):    
-    try: 
-        engine = sa.create_engine(f'postgresql://{user}:{password}@{host}:{port}/{dbname}')
-        df.fillna('', inplace=True)
-        df.to_sql(f'{database_output_table}', con=engine, if_exists='replace', index=False)
-        engine.dispose()
-        logger.info(f"Succesful WRITE to the DB table: {database_output_table}")
-    except (Exception, sql.DatabaseError) as e:
-        logger.critical('Failed to WRITE to the database: ', e)
-        raise
-
-    
-def writeToDatabase2(path_to_csv, conn, database_output_table): 
-    try:
-        cursor = conn.cursor()
-        with open(path_to_csv, 'r', encoding='utf-8') as csv_file:
-            cursor.copy_expert(dep.COPY_sql_script, csv_file)
-        conn.commit()
-        logger.info(f"Succesful WRITE to the DB table: {database_output_table}")
-    except (Exception, sql.DatabaseError) as e:
-        logger.critical(f'Failed to WRITE to the database, with following error: {e}')
-        raise
-    finally: 
-        if cursor: 
-            cursor.close()
-        if conn and conn.status == sql.extensions.STATUS_READY:
-            conn.close()
-
+def writeToDatabase(df) -> None:
+    with engine.begin() as conn:
+        conn.exec_driver_sql(stage_sql)
+        df.to_sql("stage_table", con=conn, if_exists="append", index=False)
+        conn.exec_driver_sql(insert_sql)
