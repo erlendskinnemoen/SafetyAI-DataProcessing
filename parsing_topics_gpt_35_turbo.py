@@ -1,6 +1,6 @@
 #################################################### OVERVIEW (START) ####################################################
 # LAST CHANGES [AUTHOR]: Erlend Skinnemoen
-# LAST CHANGES [DATE]: 28.02.2024
+# LAST CHANGES [DATE]: 29.02.2024
 #
 # DESCRIPTION 
 # Script does the parsing and categorizing of textual data using Azure's AI services. It extracts relevant topics from improved text descriptions based on pre-defined categories, converting string responses into structured lists or JSON formats as required. 
@@ -8,26 +8,25 @@
 # The output is a list =< 6 topics related to each "event"/description as a list of string and JSON 
 #################################################### OVERVIEW (END) ######################################################
 
-import json
-import pandas as pd
-import logging
-import requests
-import random
-import time 
 import dependencies as dep
+import json
+import logging
+import pandas as pd
+import random
+import requests
+import time 
 
-from openai import BadRequestError
-from concurrent.futures import as_completed
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from concurrent.futures import as_completed
+from openai import BadRequestError
 
 ## ----- VARIABLES ----- ##
-
-logger = logging.getLogger(__name__)
-azure_client = dep.client()
-
 parsed_text=[]
 
 ## ------ FUNCTIONS ------ ##
+logger = logging.getLogger(__name__)
+azure_client = dep.client()
+
 def extractResponse(response):
     try: 
         if response.choices and len(response.choices) > 0:
@@ -49,11 +48,11 @@ def string2list(string_response):
 
 def string2json(string_response):
     try:
-        json_response = json.dumps(string_response.split('\n'))  # Convert list to JSON string
+        json_response = json.dumps(string_response.split('\n'))  
         return json_response
     except Exception as e:
         logger.error("Error converting string to JSON: %s", e)
-        return json.dumps([])  # Return an empty JSON list in case of error 
+        return json.dumps([])  
 
 
 def formatResponse(temp_df, column_name, row_index, input_data):

@@ -1,6 +1,6 @@
 #################################################### OVERVIEW (START) ####################################################
 # LAST CHANGES [AUTHOR]: Erlend Skinnemoen
-# LAST CHANGES [DATE]: 28.02.2024
+# LAST CHANGES [DATE]: 29.02.2024
 #
 # DESCRIPTION 
 # First step in the AI process and focuses on iporving the free-text descriptions from the Improvment Reports from Kongsberg Maritime KFLEET.
@@ -8,25 +8,24 @@
 # Results are aggregated and sorted for further use, ensuring that the enhanced text aligns with the original report's sequence.
 #################################################### OVERVIEW (END) ######################################################
 
-import pandas as pd
-import logging
-import requests
-import random
-import time 
 import dependencies as dep
+import logging
+import pandas as pd
+import random
+import requests
+import time 
 
-from openai import BadRequestError
-from concurrent.futures import as_completed
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from concurrent.futures import as_completed
+from openai import BadRequestError
 
 ## ------ VARIABLES ------ ##
-
-logger = logging.getLogger(__name__)
-azure_client = dep.client()
-
 improved_text = [] # List to store results
 
 ## ------ FUNCTIONS ------ ##
+logger = logging.getLogger(__name__)
+azure_client = dep.client()
+
 def extractResponse(response):
     try: 
         if response.choices and len(response.choices) > 0:
@@ -38,7 +37,7 @@ def extractResponse(response):
         logger.error("Error extracting content from response: %s", e)
 
 def aiImprovedResponse(row):
-    text = row['_value'] #description text
+    text = row['_value']
     if pd.isnull(text): improved_text = ""
     else:    
         for retry in range(dep.max_tries):

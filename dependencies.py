@@ -48,7 +48,7 @@ promt_improvedText = (
             "The text should be formal and concise."
 )
 
-topic_categ = np.genfromtxt("./kfleetCateg.txt", dtype=str, delimiter='\n') #IMPORTANT FILE WITH PRE-ARRANGED TOPICS - UPDATE IF TOPICS In KFLEET CHANGES 
+topic_categ = np.genfromtxt("./categories.txt", dtype=str, delimiter='\n') #IMPORTANT FILE WITH PRE-ARRANGED TOPICS - UPDATE IF TOPICS In KFLEET CHANGES 
 topic_categ_str = ', '.join(topic_categ)    
 
 promt_parseText = (
@@ -62,18 +62,14 @@ improved_failed_rows = []  # List to store failed rows from improve_text_gpt_35_
 parsed_failed_rows = [] # List to store failed rows from parsing_topics_gpt_35_turbo.py
 
 def storeFailuresToCsv(failed_rows, file_name):
-    failed_rows_df = pd.DataFrame(failed_rows)
+    failed_rows_df = pd.DataFrame(failed_rows).drop_duplicates(subset=['idmemo'])
     if not failed_rows_df.empty:
         failed_rows_df.to_csv(f'{file_name}_failedRows.csv', index=False) #seperate file for imporved_Text and parsed_topics
 
+#Central Exception handling: This functions simply hooks the sys.excepthook. For detailed information see the docs for sys.excepthook.
 def handle_exception(
     type_: type, value: BaseException, traceback_type: TracebackType
-) -> None:
-    """Central Exception handling.
-
-    This functions simply hooks the sys.excepthook. For detailed information
-    see the docs for sys.excepthook.
-    """
+    ) -> None:
 
     if issubclass(type_, KeyboardInterrupt):
         sys.__excepthook__(type_, value, traceback_type)

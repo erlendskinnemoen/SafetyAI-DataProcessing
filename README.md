@@ -28,7 +28,7 @@ This project leverages artificial intelligence to enhance the processing and ana
 # Build and Test
 Verify that the variables in `dependencies.py` are accurate (e.g related to parallel processing, dotenv_path and .env(without placeholders), database destination table, etc.)
 
-Run `main.py` in order to process the report 
+Run `main.py` in order to process the report. 
 
 # Detailed Model Descriptions
 ## main.py
@@ -44,15 +44,17 @@ database_connection.py is responsible for all direct interactions with the Postg
 
 ## improve_text_gpt_35_turbo.py
 improve_text_gpt_35_turbo.py utilizes Azure OpenAI's GPT (generative pretrained transformer) model to improve and clarify given input text, currently improvement reports from K-fleet with a focus on safety content. It takes an input text and provides a version of the text that has been improved in terms of clarity, technical language, grammar, and spelling. The new text is presented as a new column to the input file.
-- Error handling: The `aiImprovedResponse` function tries to handle errors related to http, service requests, timeout and bad request errors. If any row uses more than max_tries it’s saved to a csv file (improved_text_failed_rows.csv), available for futher inspection. 
+- Error handling: The `aiImprovedResponse` function tries to handle errors related to http, service requests, timeout and bad request errors. If any row uses more than max_tries it’s saved to a csv file (improved_text_failed_rows.csv), available for further inspection. 
 
 ## parse_topics_gpt_35_turbo.py
-parse_topics_gpt_35_turbo.py utilizes Azure OpenAI's GPT to extract topics from blocks of text. It is designed for parallel processing and manages potential API errors with retries. The core objective is choosing a set of key topics (from the `categories.txt`file) related to safety for personnel and material by analyzing the unstructured text data. After processing each chunk, the script introduces a brief pause (sleep) before moving on to the next chunk. The purpose of the sleep is to not overloading the openAI server, which wil trigger a limit error. 
-- Error handling: The `aiTopicResponse` function tries to handle errors related to http, service requests, timeout and bad request errors. If any row uses more than max_tries it’s saved to a csv file (parsed_topics_failed_rows.csv), available for futher inspection. 
+parse_topics_gpt_35_turbo.py utilizes Azure OpenAI's GPT to extract topics from blocks of text. It is designed for parallel processing and manages potential API errors with retries. The core objective is choosing a set of key topics (from the `categories.txt` file) related to safety for personnel and material by analyzing the unstructured text data. After processing each chunk, the script introduces a brief pause (sleep) before moving on to the next chunk. The purpose of the sleep is to not overload the OpenAI server, which will trigger a limit error. 
+- Error handling: The `aiTopicResponse` function tries to handle errors related to http, service requests, timeout and bad request errors. If any row uses more than max_tries it’s saved to a csv file (parsed_topics_failed_rows.csv), available for further inspection.  
 
 # Contribute
 ## TODO's
 TODO: Deploy to Azure Kubernetes Service
+
+TODO: Tweek the system promt for `promt_improvedText` to avoid the 400 Error. It seems to be enacted by Microsoft and not OpenAI: [Azure OpenAI filtering  policy](https://go.microsoft.com/fwlink/?linkid=2198766). "Only customers who have been approved for modified content filtering have full content filtering control and can turn content filters partially or fully off. Content filtering control doesn't apply to content filters for DALL-E (preview) or GPT-4 Turbo with Vision (preview). Apply for modified content filters using this form: [Azure OpenAI Limited Access Review: Modified Content Filtering](https://customervoice.microsoft.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbR7en2Ais5pxKtso_Pz4b1_xUMlBQNkZMR0lFRldORTdVQzQ0TEI5Q1ExOSQlQCN0PWcu)."
 
 If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
 - [ASP.NET Core](https://github.com/aspnet/Home)
